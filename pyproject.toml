@@ -1,0 +1,32 @@
+[project]
+name = "paperpilot-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "sujinoven", email = "sujinoven02@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=1.5.9",
+    "pymupdf>=2.0",
+    "sentence-transformers>=6.2.0",
+]
+
+[project.scripts]
+paperpilot-project = "paperpilot_project:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "paperpilot"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/paperpilot"]
