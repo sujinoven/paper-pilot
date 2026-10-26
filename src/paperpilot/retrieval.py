@@ -33,21 +33,40 @@ def keyword_overlap(question: str, passage: str) -> float:
 
     return len(query_terms & passage_terms) / len(query_terms)
 
+def section_relevance(question: str, section: str) -> float:
+    """
+    Measure overlap between the question and section heading.
+    """
+    question_tokens = set(tokenize(question))
+    section_tokens = set(tokenize(section))
+
+    if not question_tokens or not section_tokens:
+        return 0.0
+
+    return len(question_tokens & section_tokens) / len(question_tokens)
+
 
 def retrieve(
-    store: PaperVectorStore,
+    store,
     question: str,
     top_k: int = 5,
     candidate_k: int = 15,
 ) -> list[dict]:
-    """Retrieve candidates and rerank using keyword overlap."""
 
     if top_k <= 0:
-        raise ValueError("top_k must be positive.")
+        raise ValueError("top_k must be greater than 0.")
+
+    if candidate_k <= 0:
+        raise ValueError("candidate_k must be greater than 0.")
+
+    if candidate_k < top_k:
+        raise ValueError(
+            "candidate_k must be greater than or equal to top_k."
+        )
 
     candidates = store.search(
         question,
-        top_k=max(top_k, candidate_k),
+        top_k=candidate_k,
     )
 
     reranked = []
@@ -60,9 +79,15 @@ def retrieve(
             result["text"],
         )
 
+        section_score = section_relevance(
+            question,
+            result["metadata"].get("section", ""),
+        )
+
         combined_score = (
-            0.7 * semantic_score
-            + 0.3 * keyword_score
+            0.65 * semantic_score
+            + 0.15 * keyword_score
+            + 0.20 * section_score
         )
 
         reranked.append(
@@ -70,6 +95,7 @@ def retrieve(
                 **result,
                 "semantic_score": semantic_score,
                 "keyword_score": keyword_score,
+                "section_score": section_score,
                 "combined_score": combined_score,
             }
         )
