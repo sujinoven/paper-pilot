@@ -82,6 +82,7 @@ def test_generator_warns_about_invalid_citation(
         "The paper uses sinusoidal encodings [9]."
     )
 
+    # Both initial generation and repair return invalid citations.
     mock_client.chat.return_value = mock_response
 
     generator = PaperAnswerGenerator()
@@ -94,5 +95,127 @@ def test_generator_warns_about_invalid_citation(
     captured = capsys.readouterr()
 
     assert "[9]" in answer
-    assert "Invalid citations detected" in captured.out
-    assert "[9]" in captured.out
+    assert "Citation check failed. Attempting repair." in captured.out
+    assert "Citation repair failed." in captured.out
+    assert "Invalid citations: [9]" in captured.out
+
+    # Initial generation + one repair attempt.
+    assert mock_client.chat.call_count == 2
+
+@patch("paperpilot.generation.Client")
+def test_generator_warns_when_citations_are_missing(
+    mock_client_class,
+    capsys,
+):
+    mock_client = mock_client_class.return_value
+
+    mock_response = MagicMock()
+    mock_response.message.content = (
+        "The Transformer uses sinusoidal positional encodings."
+    )
+
+    # Both generation and repair return an uncited answer.
+    mock_client.chat.return_value = mock_response
+
+    generator = PaperAnswerGenerator()
+
+    answer = generator.generate(
+        "What positional encodings are used?",
+        sample_results(),
+    )
+
+    captured = capsys.readouterr()
+
+    assert "sinusoidal positional encodings" in answer
+    assert "Citation check failed. Attempting repair." in captured.out
+    assert "Citation repair failed." in captured.out
+
+    assert mock_client.chat.call_count == 2
+
+@patch("paperpilot.generation.Client")
+def test_generator_repairs_missing_citations(mock_client_class):
+    mock_client = mock_client_class.return_value
+
+    first_response = MagicMock()
+    first_response.message.content = (
+        "The Transformer uses sinusoidal positional encodings."
+    )
+
+    repaired_response = MagicMock()
+    repaired_response.message.content = (
+        "The Transformer uses sinusoidal positional encodings [1]."
+    )
+
+    mock_client.chat.side_effect = [
+        first_response,
+        repaired_response,
+    ]
+
+    generator = PaperAnswerGenerator()
+
+    answer = generator.generate(
+        "What positional encodings are used?",
+        sample_results(),
+    )
+
+    assert answer.endswith("[1].")
+    assert mock_client.chat.call_count == 2
+
+@patch("paperpilot.generation.Client")
+def test_generator_keeps_original_when_repair_fails(
+    mock_client_class,
+    capsys,
+):
+    mock_client = mock_client_class.return_value
+
+    first_response = MagicMock()
+    first_response.message.content = (
+        "The Transformer uses sinusoidal encodings [9]."
+    )
+
+    failed_repair = MagicMock()
+    failed_repair.message.content = (
+        "The Transformer uses sinusoidal encodings."
+    )
+
+    mock_client.chat.side_effect = [
+        first_response,
+        failed_repair,
+    ]
+
+    generator = PaperAnswerGenerator()
+
+    answer = generator.generate(
+        "What positional encodings are used?",
+        sample_results(),
+    )
+
+    captured = capsys.readouterr()
+
+    assert answer == first_response.message.content
+    assert "Citation repair failed." in captured.out
+    assert mock_client.chat.call_count == 2
+
+
+@patch("paperpilot.generation.Client")
+def test_generator_skips_repair_for_valid_citations(
+    mock_client_class,
+):
+    mock_client = mock_client_class.return_value
+
+    response = MagicMock()
+    response.message.content = (
+        "The Transformer uses sinusoidal encodings [1]."
+    )
+
+    mock_client.chat.return_value = response
+
+    generator = PaperAnswerGenerator()
+
+    answer = generator.generate(
+        "What positional encodings are used?",
+        sample_results(),
+    )
+
+    assert answer == response.message.content
+    assert mock_client.chat.call_count == 1

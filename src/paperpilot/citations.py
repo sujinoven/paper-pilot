@@ -41,3 +41,40 @@ def validate_citations(
         "has_citations": bool(citations),
         "all_valid": len(invalid) == 0,
     }
+
+def check_citation_coverage(
+    answer: str,
+    source_count: int,
+) -> dict:
+    """
+    Check whether a generated answer includes at least one
+    valid source citation, unless it is a standard refusal.
+    """
+    if source_count < 0:
+        raise ValueError("source_count cannot be negative.")
+
+    validation = validate_citations(
+        answer=answer,
+        source_count=source_count,
+    )
+
+    refusal_text = (
+        "I could not find enough information in the "
+        "provided paper passages to answer this question."
+    )
+
+    is_refusal = answer.strip() == refusal_text
+
+    has_valid_citation = bool(validation["valid"])
+
+    return {
+        "is_refusal": is_refusal,
+        "has_valid_citation": has_valid_citation,
+        "coverage_ok": (
+            is_refusal
+            or (
+                has_valid_citation
+                and validation["all_valid"]
+            )
+        ),
+    }

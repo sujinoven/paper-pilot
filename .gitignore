@@ -9,3 +9,20 @@ wheels/
 # Virtual environments
 .venv
 data/chroma/
+
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+data/chroma/
+data/papers/*.pdf
+
+.streamlit/secrets.toml
+.env
+.env.*
+
+*.log
+.DS_Store
+.vscode/
